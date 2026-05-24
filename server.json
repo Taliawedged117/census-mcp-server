@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "census-mcp-server",
-  "description": "",
+  "name": "cyanheads/census-mcp-server",
+  "description": "MCP server for querying U.S. Census Bureau data — ACS, Decennial, and more.",
   "repository": {
-    "url": "",
+    "url": "https://github.com/cyanheads/census-mcp-server",
     "source": "github"
   },
   "version": "0.1.0",
