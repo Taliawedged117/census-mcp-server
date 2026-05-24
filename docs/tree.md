@@ -1,6 +1,6 @@
 # census-mcp-server - Directory Structure
 
-Generated on: 2026-05-24 13:12:50
+Generated on: 2026-05-24 13:17:20
 
 ```text
 census-mcp-server/
@@ -149,6 +149,7 @@ census-mcp-server/
 ├── AGENTS.md
 ├── biome.json
 ├── bun.lock
+├── bunfig.toml
 ├── CHANGELOG.md
 ├── CLAUDE.md
 ├── devcheck.config.json
