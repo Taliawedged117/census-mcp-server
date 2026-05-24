@@ -4,7 +4,7 @@
  */
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
-import { invalidParams, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import { getServerConfig } from '@/config/server-config.js';
 import { getCensusApiService } from '@/services/census-api/census-api-service.js';
 import {
@@ -153,11 +153,10 @@ export const censusCompareGeographies = tool('census_compare_geographies', {
 
   async handler(input, ctx) {
     if (!KNOWN_DATASETS.has(input.dataset ?? 'acs/acs5')) {
-      throw invalidParams(
+      throw ctx.fail(
+        'geography_not_supported',
         `Unknown dataset: "${input.dataset}". Call census_list_datasets to discover valid dataset codes.`,
-        {
-          dataset: input.dataset,
-        },
+        { dataset: input.dataset, ...ctx.recoveryFor('geography_not_supported') },
       );
     }
 

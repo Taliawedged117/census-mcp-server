@@ -26,7 +26,7 @@ export class GeographyService {
   /**
    * Resolve a place name or address to Census FIPS identifiers.
    */
-  async resolveGeography(
+  resolveGeography(
     name: string,
     geographyType: string | undefined,
     ctx: Context,
@@ -46,6 +46,7 @@ export class GeographyService {
     geographyType: string,
     ctx: Context,
   ): Promise<ResolvedGeography> {
+    // biome-ignore lint/style/noNonNullAssertion: county key is always present in static TIGERWEB_LAYERS
     const layerConfig = TIGERWEB_LAYERS[geographyType] ?? TIGERWEB_LAYERS.county!;
     const { service, layer } = layerConfig;
 
@@ -152,6 +153,7 @@ export class GeographyService {
       );
     }
 
+    // biome-ignore lint/style/noNonNullAssertion: guarded by features.length > 3 check above (exactly 1-3 matches)
     const feature = features[0]!;
     const attrs = feature.attributes;
 
@@ -240,6 +242,7 @@ export class GeographyService {
       );
     }
 
+    // biome-ignore lint/style/noNonNullAssertion: guarded by matches.length === 0 check above
     const match = matches[0]!;
     const geos = match.geographies ?? {};
     const stateGeo = (geos.States ?? [])[0];

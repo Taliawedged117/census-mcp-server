@@ -11,19 +11,6 @@
 
 ---
 
-## First Session
-
-This project was just scaffolded with `bunx @cyanheads/mcp-ts-core init`. The framework, skills, and example definitions are in place — the domain isn't. The user's first messages will set direction; wait for them before proceeding.
-
-> **Remove this section** from CLAUDE.md / AGENTS.md after completing these steps. The skills and conventions below remain — this block is one-time onboarding only.
-
-1. **Get your bearings.** Take stock of the project tree, the skills in `skills/`, and the tools/MCP servers available. Light tool use is fine for context-building — you're mapping the territory, not committing yet.
-2. **Read the framework docs** — `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` (builders, Context, errors, exports, conventions)
-3. **Run the `setup` skill** — read `skills/setup/SKILL.md` and follow its checklist (project orientation, agent protocol file selection, echo definition cleanup, skill sync)
-4. **Design the server** — read `skills/design-mcp-server/SKILL.md` and work through it with the user to map the domain into tools, resources, and services before scaffolding
-
----
-
 ## What's Next?
 
 When the user asks what's next or needs direction, suggest options based on the current project state. Common next steps:
@@ -60,71 +47,67 @@ Tailor suggestions to what's actually missing or stale — don't recite the full
 
 ```ts
 import { tool, z } from '@cyanheads/mcp-ts-core';
+import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { getServerConfig } from '@/config/server-config.js';
+import { DATASET_LATEST_YEARS, getVariableCacheService } from '@/services/variable-cache/variable-cache-service.js';
 
-export const searchItems = tool('search_items', {
-  description: 'Search inventory items by query.',
-  annotations: { readOnlyHint: true },
+export const censusSearchVariables = tool('census_search_variables', {
+  description: 'Search Census variables by keyword across labels and concepts.',
+  annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
-    query: z.string().describe('Search terms'),
-    limit: z.number().default(10).describe('Max results'),
+    query: z.string().describe('Keyword to search (e.g., "median household income")'),
+    dataset: z.string().optional().describe('Dataset to search (default: "acs/acs5")'),
+    year: z.number().optional().describe('Vintage year (default: latest for dataset)'),
+    limit: z.number().optional().describe('Max results (default: 20, max: 100)'),
   }),
   output: z.object({
-    items: z.array(z.object({
-      id: z.string().describe('Item ID'),
-      name: z.string().describe('Item name'),
-    })).describe('Matching items'),
+    variables: z.array(z.object({
+      variable_code: z.string().describe('Variable code (e.g., "B19013_001E")'),
+      label: z.string().describe('Human-readable label'),
+      concept: z.string().describe('Concept group'),
+    })).describe('Matching variables sorted by relevance'),
+    total_matches: z.number().describe('Total variables matched before the limit'),
+    dataset: z.string().describe('Dataset searched'),
+    year: z.number().describe('Vintage year searched'),
   }),
-  auth: ['inventory:read'],
+
+  errors: [
+    {
+      reason: 'dataset_not_found',
+      code: JsonRpcErrorCode.NotFound,
+      when: 'Dataset code is not recognized',
+      recovery: 'Call census_list_datasets to discover valid dataset codes like acs/acs5.',
+    },
+  ],
 
   async handler(input, ctx) {
-    const items = await findItems(input.query, input.limit);
-    ctx.log.info('Search completed', { query: input.query, count: items.length });
-    return { items };
+    const dataset = input.dataset?.trim() || 'acs/acs5';
+    const { defaultYear } = getServerConfig();
+    const year = input.year ?? DATASET_LATEST_YEARS[dataset] ?? defaultYear;
+    const limit = Math.min(input.limit ?? 20, 100);
+
+    const service = getVariableCacheService();
+    const { variables, totalMatches } = await service.searchVariables(
+      { query: input.query, dataset, year, limit },
+      ctx,
+    );
+
+    return {
+      variables: variables.map((v) => ({
+        variable_code: v.code,
+        label: v.label,
+        concept: v.concept,
+      })),
+      total_matches: totalMatches,
+      dataset,
+      year,
+    };
   },
 
-  // format() populates content[] — the markdown twin of structuredContent.
-  // Different clients read different surfaces (Claude Code → structuredContent,
-  // Claude Desktop → content[]); both must carry the same data.
-  // Enforced at lint time: every field in `output` must appear in the rendered text.
   format: (result) => [{
     type: 'text',
-    text: result.items.map(i => `**${i.id}**: ${i.name}`).join('\n'),
+    text: result.variables.map((v) => `**\`${v.variable_code}\`** — ${v.label}`).join('\n'),
   }],
-});
-```
-
-### Resource
-
-```ts
-import { resource, z } from '@cyanheads/mcp-ts-core';
-import { notFound } from '@cyanheads/mcp-ts-core/errors';
-
-export const itemData = resource('inventory://{itemId}', {
-  description: 'Fetch an inventory item by ID.',
-  params: z.object({ itemId: z.string().describe('Item identifier') }),
-  auth: ['inventory:read'],
-  async handler(params, ctx) {
-    const item = await ctx.state.get(`item:${params.itemId}`);
-    if (!item) throw notFound(`Item ${params.itemId} not found`, { itemId: params.itemId });
-    return item;
-  },
-});
-```
-
-### Prompt
-
-```ts
-import { prompt, z } from '@cyanheads/mcp-ts-core';
-
-export const reviewCode = prompt('review_code', {
-  description: 'Review code for issues and best practices.',
-  args: z.object({
-    code: z.string().describe('Code to review'),
-    language: z.string().optional().describe('Programming language'),
-  }),
-  generate: (args) => [
-    { role: 'user', content: { type: 'text', text: `Review this ${args.language ?? ''} code:\n${args.code}` } },
-  ],
 });
 ```
 
@@ -136,21 +119,23 @@ import { z } from '@cyanheads/mcp-ts-core';
 import { parseEnvConfig } from '@cyanheads/mcp-ts-core/config';
 
 const ServerConfigSchema = z.object({
-  apiKey: z.string().describe('External API key'),
-  maxResults: z.coerce.number().default(100),
+  censusApiKey: z.string().describe('Census Bureau API key'),
+  defaultYear: z.coerce.number().default(2024).describe('Default vintage year'),
+  variableCacheTtlHours: z.coerce.number().default(24).describe('Variable cache TTL in hours'),
 });
 
 let _config: z.infer<typeof ServerConfigSchema> | undefined;
 export function getServerConfig() {
   _config ??= parseEnvConfig(ServerConfigSchema, {
-    apiKey: 'MY_API_KEY',
-    maxResults: 'MY_MAX_RESULTS',
+    censusApiKey: 'CENSUS_API_KEY',
+    defaultYear: 'CENSUS_DEFAULT_YEAR',
+    variableCacheTtlHours: 'CENSUS_VARIABLE_CACHE_TTL_HOURS',
   });
   return _config;
 }
 ```
 
-`parseEnvConfig` maps Zod schema paths → env var names so errors name the variable (`MY_API_KEY`) not the path (`apiKey`). Throws `ConfigurationError`, which the framework prints as a clean startup banner.
+`parseEnvConfig` maps Zod schema paths → env var names so errors name the variable (`CENSUS_API_KEY`) not the path (`censusApiKey`). Throws `ConfigurationError`, which the framework prints as a clean startup banner.
 
 ---
 
@@ -161,11 +146,7 @@ Handlers receive a unified `ctx` object. Key properties:
 | Property | Description |
 |:---------|:------------|
 | `ctx.log` | Request-scoped logger — `.debug()`, `.info()`, `.notice()`, `.warning()`, `.error()`. Auto-correlates requestId, traceId, tenantId. |
-| `ctx.state` | Tenant-scoped KV — `.get(key)`, `.set(key, value, { ttl? })`, `.delete(key)`, `.list(prefix, { cursor, limit })`. Accepts any serializable value. |
-| `ctx.elicit` | Ask user for structured input. **Check for presence first:** `if (ctx.elicit) { ... }` |
-| `ctx.sample` | Request LLM completion from the client. **Check for presence first:** `if (ctx.sample) { ... }` |
-| `ctx.signal` | `AbortSignal` for cancellation. |
-| `ctx.progress` | Task progress (present when `task: true`) — `.setTotal(n)`, `.increment()`, `.update(message)`. |
+| `ctx.signal` | `AbortSignal` for cancellation — passed through to `fetchWithTimeout` and `withRetry`. |
 | `ctx.requestId` | Unique request ID. |
 | `ctx.tenantId` | Tenant ID from JWT or `'default'` for stdio. |
 
@@ -217,20 +198,29 @@ See framework CLAUDE.md and the `api-errors` skill for the full auto-classificat
 
 ```text
 src/
-  index.ts                              # createApp() entry point
+  index.ts                              # createApp() entry point — registers tools, inits services
   config/
-    server-config.ts                    # Server-specific env vars (Zod schema)
+    server-config.ts                    # Census-specific env vars (Zod schema)
   services/
-    [domain]/
-      [domain]-service.ts               # Domain service (init/accessor pattern)
-      types.ts                          # Domain types
+    census-api/
+      census-api-service.ts             # Census Data API client — queries, suppression mapping
+      types.ts                          # Census data types
+    geography/
+      geography-service.ts              # TIGERweb + Census Geocoder geography resolution
+      types.ts                          # Geography types
+    variable-cache/
+      variable-cache-service.ts         # In-process variables.json cache with keyword search
+      types.ts                          # Variable types
   mcp-server/
     tools/definitions/
-      [tool-name].tool.ts               # Tool definitions
-    resources/definitions/
-      [resource-name].resource.ts       # Resource definitions
-    prompts/definitions/
-      [prompt-name].prompt.ts           # Prompt definitions
+      census-list-datasets.tool.ts
+      census-list-geographies.tool.ts
+      census-search-variables.tool.ts
+      census-get-variable.tool.ts
+      census-resolve-geography.tool.ts
+      census-query-data.tool.ts
+      census-compare-geographies.tool.ts
+      index.ts                          # Barrel export and allToolDefinitions array
 ```
 
 ---

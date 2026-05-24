@@ -1,7 +1,8 @@
 {
   "name": "census-mcp-server",
+  "mcpName": "io.github.cyanheads/census-mcp-server",
   "version": "0.1.0",
-  "description": "",
+  "description": "Query U.S. Census Bureau data, variables, and geography via MCP. STDIO or Streamable HTTP.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -37,16 +38,40 @@
     "start:stdio": "MCP_TRANSPORT_TYPE=stdio node dist/index.js",
     "start:http": "MCP_TRANSPORT_TYPE=http node dist/index.js"
   },
-  "keywords": ["mcp", "mcp-server", "model-context-protocol"],
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "ai",
+    "llm",
+    "bun",
+    "stdio",
+    "streamable-http",
+    "census",
+    "census-bureau",
+    "acs",
+    "american-community-survey",
+    "fips",
+    "geography",
+    "open-data",
+    "government-data",
+    "demographic-data"
+  ],
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/cyanheads/census-mcp-server.git"
   },
+  "homepage": "https://github.com/cyanheads/census-mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/cyanheads/census-mcp-server/issues"
+  },
+  "author": "Casey Hand <casey@caseyjhand.com> (https://github.com/cyanheads)",
   "license": "Apache-2.0",
   "engines": {
     "bun": ">=1.3.0",
     "node": ">=24.0.0"
   },
+  "packageManager": "bun@1.3.2",
   "publishConfig": {
     "access": "public"
   },

@@ -38,7 +38,8 @@ ENV NODE_ENV=production
 
 # OCI image metadata (https://github.com/opencontainers/image-spec/blob/main/annotations.md)
 LABEL org.opencontainers.image.title="census-mcp-server"
-LABEL org.opencontainers.image.description=""
+LABEL org.opencontainers.image.description="Query U.S. Census Bureau data, variables, and geography via MCP. STDIO or Streamable HTTP."
+LABEL org.opencontainers.image.source="https://github.com/cyanheads/census-mcp-server"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 # Copy dependency manifests

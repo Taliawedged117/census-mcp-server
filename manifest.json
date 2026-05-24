@@ -2,8 +2,8 @@
   "manifest_version": "0.3",
   "name": "census-mcp-server",
   "version": "0.1.0",
-  "description": "",
-  "author": { "name": "" },
+  "description": "Query U.S. Census Bureau data, variables, and geography via MCP. STDIO or Streamable HTTP.",
+  "author": { "name": "Casey Hand" },
   "server": {
     "type": "node",
     "entry_point": "dist/index.js",
@@ -22,5 +22,12 @@
   },
   "tools_generated": true,
   "prompts_generated": true,
-  "user_config": {}
+  "user_config": {
+    "CENSUS_API_KEY": {
+      "title": "Census API Key",
+      "description": "Census Bureau API key from api.census.gov/data/key_signup.html. Required for data queries (census_query_data, census_compare_geographies); variable search and geography resolution work without it.",
+      "type": "string",
+      "required": false
+    }
+  }
 }

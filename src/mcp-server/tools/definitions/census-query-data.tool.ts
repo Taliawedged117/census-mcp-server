@@ -136,9 +136,7 @@ export const censusQueryData = tool('census_query_data', {
     if (input.variables.length === 0) {
       throw invalidParams(
         'At least one variable code is required. Use census_search_variables to find codes.',
-        {
-          variableCount: 0,
-        },
+        { variableCount: 0 },
       );
     }
 
@@ -146,19 +144,14 @@ export const censusQueryData = tool('census_query_data', {
       throw ctx.fail(
         'too_many_variables',
         `${input.variables.length} variables requested; maximum is 50.`,
-        {
-          requested: input.variables.length,
-          ...ctx.recoveryFor('too_many_variables'),
-        },
+        { requested: input.variables.length, ...ctx.recoveryFor('too_many_variables') },
       );
     }
 
     if (!KNOWN_DATASETS.has(input.dataset ?? 'acs/acs5')) {
       throw invalidParams(
         `Unknown dataset: "${input.dataset}". Call census_list_datasets to discover valid dataset codes.`,
-        {
-          dataset: input.dataset,
-        },
+        { dataset: input.dataset },
       );
     }
 

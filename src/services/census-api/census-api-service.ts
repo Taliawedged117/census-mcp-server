@@ -98,7 +98,7 @@ export class CensusApiService {
   /**
    * Fetch the list of geography levels supported by a dataset+year from the Census API.
    */
-  async fetchGeographyLevels(
+  fetchGeographyLevels(
     dataset: string,
     year: number,
     ctx: Context,
@@ -165,14 +165,14 @@ export class CensusApiService {
   ): CensusDataRow[] {
     if (raw.length < 1) return [];
 
-    const headers = raw[0]!;
+    const headers = raw[0] as string[];
     const nameIdx = headers.indexOf('NAME');
     const geoIdx = headers.indexOf(geographyLevel);
 
     const rows: CensusDataRow[] = [];
 
     for (let i = 1; i < raw.length; i++) {
-      const row = raw[i]!;
+      const row = raw[i] as string[];
       const geographyName = nameIdx >= 0 ? (row[nameIdx] ?? '') : '';
       const geographyFips = geoIdx >= 0 ? (row[geoIdx] ?? '') : '';
 
