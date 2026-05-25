@@ -5,7 +5,7 @@
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { getServerConfig } from '@/config/server-config.js';
+import { getDiscoveryConfig } from '@/config/server-config.js';
 import {
   DATASET_LATEST_YEARS,
   getVariableCacheService,
@@ -38,7 +38,7 @@ export const censusGetVariable = tool('census_get_variable', {
       .array(
         z
           .object({
-            variable_code: z.string().describe('Variable code as requested.'),
+            variable_code: z.string().describe('Census variable code (e.g., "B19013_001E").'),
             label: z.string().describe('Human-readable label from the Census data dictionary.'),
             concept: z.string().describe('Concept group the variable belongs to.'),
             predicate_type: z.string().describe('Data type (e.g., "int", "string", "float").'),
@@ -83,7 +83,7 @@ export const censusGetVariable = tool('census_get_variable', {
     {
       reason: 'variables_unavailable',
       code: JsonRpcErrorCode.ServiceUnavailable,
-      when: 'Variables.json endpoint is unreachable or returned an unparseable response.',
+      when: 'Variable metadata endpoint is unreachable or returned an unparseable response.',
       retryable: true,
       recovery:
         'Retry the request; if persistent, the dataset and year combination may not be available.',
@@ -92,7 +92,7 @@ export const censusGetVariable = tool('census_get_variable', {
 
   async handler(input, ctx) {
     const dataset = input.dataset?.trim() || 'acs/acs5';
-    const { defaultYear } = getServerConfig();
+    const { defaultYear } = getDiscoveryConfig();
     const year = input.year ?? DATASET_LATEST_YEARS[dataset] ?? defaultYear;
 
     ctx.log.info('Getting Census variable metadata', { variables: input.variables, dataset, year });

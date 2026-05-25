@@ -19,7 +19,12 @@ vi.mock('@/services/variable-cache/variable-cache-service.js', () => ({
 }));
 
 vi.mock('@/config/server-config.js', () => ({
-  getServerConfig: vi.fn(() => ({ defaultYear: 2024 })),
+  getDiscoveryConfig: vi.fn(() => ({ defaultYear: 2024, variableCacheTtlHours: 24 })),
+  getServerConfig: vi.fn(() => ({
+    defaultYear: 2024,
+    censusApiKey: 'test-key',
+    variableCacheTtlHours: 24,
+  })),
 }));
 
 const mockQueryData = vi.fn();
@@ -174,7 +179,7 @@ describe('censusCompareGeographies', () => {
     expect(result.total_count).toBe(60);
   });
 
-  it('throws InvalidParams for unknown dataset', async () => {
+  it('throws dataset_not_found for unknown dataset', async () => {
     const ctx = createMockContext({ errors: censusCompareGeographies.errors });
     const input = censusCompareGeographies.input.parse({
       variables: ['B19013_001E'],
@@ -182,7 +187,8 @@ describe('censusCompareGeographies', () => {
       dataset: 'invalid/dataset',
     });
     await expect(censusCompareGeographies.handler(input, ctx)).rejects.toMatchObject({
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.NotFound,
+      data: { reason: 'dataset_not_found' },
     });
   });
 

@@ -19,7 +19,12 @@ vi.mock('@/services/variable-cache/variable-cache-service.js', () => ({
 }));
 
 vi.mock('@/config/server-config.js', () => ({
-  getServerConfig: vi.fn(() => ({ defaultYear: 2024 })),
+  getDiscoveryConfig: vi.fn(() => ({ defaultYear: 2024, variableCacheTtlHours: 24 })),
+  getServerConfig: vi.fn(() => ({
+    defaultYear: 2024,
+    censusApiKey: 'test-key',
+    variableCacheTtlHours: 24,
+  })),
 }));
 
 const mockQueryData = vi.fn();

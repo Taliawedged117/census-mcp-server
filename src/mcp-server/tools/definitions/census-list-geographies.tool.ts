@@ -5,7 +5,7 @@
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { getServerConfig } from '@/config/server-config.js';
+import { getDiscoveryConfig } from '@/config/server-config.js';
 import { getCensusApiService } from '@/services/census-api/census-api-service.js';
 import {
   DATASET_LATEST_YEARS,
@@ -79,7 +79,7 @@ export const censusListGeographies = tool('census_list_geographies', {
       });
     }
 
-    const { defaultYear } = getServerConfig();
+    const { defaultYear } = getDiscoveryConfig();
     const year = input.year ?? DATASET_LATEST_YEARS[input.dataset] ?? defaultYear;
 
     ctx.log.info('Listing geography levels', { dataset: input.dataset, year });

@@ -5,21 +5,85 @@
  */
 
 import type { Context } from '@cyanheads/mcp-ts-core';
-import type { AppConfig } from '@cyanheads/mcp-ts-core/config';
 import { notFound, serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
-import type { StorageService } from '@cyanheads/mcp-ts-core/storage';
 import { fetchWithTimeout, type RequestContext, withRetry } from '@cyanheads/mcp-ts-core/utils';
 import type { GeocoderResult, ResolvedGeography, TigerwebResponse } from './types.js';
 
 const TIGERWEB_BASE = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb';
-const GEOCODER_BASE = 'https://geocoding.geo.census.gov/geocoder/geographies/address';
+const GEOCODER_BASE = 'https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress';
 
 /** TIGERweb layer config per geography type. */
-const TIGERWEB_LAYERS: Record<string, { service: string; layer: number }> = {
-  state: { service: 'State_County', layer: 0 },
-  county: { service: 'State_County', layer: 1 },
-  place: { service: 'Places_CouSub', layer: 0 },
-  tract: { service: 'Tracts_Blocks', layer: 0 },
+const TIGERWEB_LAYERS: Record<string, { service: string; layer: number; outFields: string }> = {
+  // Layer 0 of State_County has STUSAB; other layers do not.
+  state: { service: 'State_County', layer: 0, outFields: 'NAME,STATE,STUSAB' },
+  county: { service: 'State_County', layer: 1, outFields: 'NAME,STATE,COUNTY' },
+  // Incorporated places are in layer 4 of Places_CouSub_ConCity_SubMCD (layer 0 = county subdivisions).
+  place: { service: 'Places_CouSub_ConCity_SubMCD', layer: 4, outFields: 'NAME,STATE,PLACE' },
+  tract: { service: 'Tracts_Blocks', layer: 0, outFields: 'NAME,STATE,COUNTY,TRACT' },
+};
+
+/**
+ * Static map of two-letter postal abbreviations to 2-digit state FIPS codes.
+ * Used to convert abbreviations to FIPS for WHERE clauses in non-state layers,
+ * and to resolve two-letter state inputs without a NAME LIKE query.
+ */
+const STATE_ABBR_TO_FIPS: Record<string, string> = {
+  AL: '01',
+  AK: '02',
+  AZ: '04',
+  AR: '05',
+  CA: '06',
+  CO: '08',
+  CT: '09',
+  DE: '10',
+  DC: '11',
+  FL: '12',
+  GA: '13',
+  HI: '15',
+  ID: '16',
+  IL: '17',
+  IN: '18',
+  IA: '19',
+  KS: '20',
+  KY: '21',
+  LA: '22',
+  ME: '23',
+  MD: '24',
+  MA: '25',
+  MI: '26',
+  MN: '27',
+  MS: '28',
+  MO: '29',
+  MT: '30',
+  NE: '31',
+  NV: '32',
+  NH: '33',
+  NJ: '34',
+  NM: '35',
+  NY: '36',
+  NC: '37',
+  ND: '38',
+  OH: '39',
+  OK: '40',
+  OR: '41',
+  PA: '42',
+  RI: '44',
+  SC: '45',
+  SD: '46',
+  TN: '47',
+  TX: '48',
+  UT: '49',
+  VT: '50',
+  VA: '51',
+  WA: '53',
+  WV: '54',
+  WI: '55',
+  WY: '56',
+  PR: '72',
+  VI: '78',
+  GU: '66',
+  MP: '69',
+  AS: '60',
 };
 
 export class GeographyService {
@@ -41,34 +105,54 @@ export class GeographyService {
     return this.resolveNamedPlace(name, detectedType, ctx);
   }
 
-  private async resolveNamedPlace(
+  private resolveNamedPlace(
     name: string,
     geographyType: string,
     ctx: Context,
   ): Promise<ResolvedGeography> {
     // biome-ignore lint/style/noNonNullAssertion: county key is always present in static TIGERWEB_LAYERS
     const layerConfig = TIGERWEB_LAYERS[geographyType] ?? TIGERWEB_LAYERS.county!;
-    const { service, layer } = layerConfig;
+    const { service, layer, outFields } = layerConfig;
 
-    const stateMatch = name.match(/,?\s+([A-Z]{2})\s*$/);
+    const trimmed = name.trim();
+
+    // Two-letter state abbreviation input: use STUSAB='XX' on the state layer (which has that field).
+    if (geographyType === 'state' && /^[A-Z]{2}$/.test(trimmed)) {
+      const whereClause = `STUSAB='${trimmed}'`;
+      const url = `${TIGERWEB_BASE}/${service}/MapServer/${layer}/query?where=${encodeURIComponent(whereClause)}&outFields=${outFields}&f=json`;
+      return this.fetchAndMapFeatures(url, name, geographyType, whereClause, ctx);
+    }
+
+    const stateMatch = trimmed.match(/,?\s+([A-Z]{2})\s*$/);
     const stateAbbr = stateMatch?.[1];
-    const placeName = stateAbbr ? name.replace(/,?\s+[A-Z]{2}\s*$/, '').trim() : name;
+    const placeName = stateAbbr ? trimmed.replace(/,?\s+[A-Z]{2}\s*$/, '').trim() : trimmed;
 
     let whereClause = `NAME LIKE '%${placeName.replace(/'/g, "''")}%'`;
-    if (stateAbbr) whereClause += ` AND STUSAB='${stateAbbr}'`;
 
-    const outFields =
-      geographyType === 'state'
-        ? 'NAME,STATE,STUSAB'
-        : geographyType === 'county'
-          ? 'NAME,STATE,COUNTY,STUSAB'
-          : geographyType === 'place'
-            ? 'NAME,STATE,PLACE,STUSAB'
-            : 'NAME,STATE,COUNTY,TRACT,STUSAB';
+    if (stateAbbr) {
+      if (geographyType === 'state') {
+        // State layer has STUSAB — use it directly.
+        whereClause += ` AND STUSAB='${stateAbbr}'`;
+      } else {
+        // Non-state layers don't have STUSAB — filter by STATE FIPS instead.
+        const stateFips = STATE_ABBR_TO_FIPS[stateAbbr];
+        if (stateFips) whereClause += ` AND STATE='${stateFips}'`;
+      }
+    }
 
     const url = `${TIGERWEB_BASE}/${service}/MapServer/${layer}/query?where=${encodeURIComponent(whereClause)}&outFields=${outFields}&f=json`;
+    return this.fetchAndMapFeatures(url, name, geographyType, whereClause, ctx);
+  }
 
-    ctx.log.debug('TIGERweb query', { service, layer, whereClause });
+  /** Fetch TIGERweb features and map them to a ResolvedGeography. */
+  private async fetchAndMapFeatures(
+    url: string,
+    name: string,
+    geographyType: string,
+    whereClause: string,
+    ctx: Context,
+  ): Promise<ResolvedGeography> {
+    ctx.log.debug('TIGERweb query', { url, whereClause });
 
     const data = await withRetry(
       async () => {
@@ -245,12 +329,18 @@ export class GeographyService {
     // biome-ignore lint/style/noNonNullAssertion: guarded by matches.length === 0 check above
     const match = matches[0]!;
     const geos = match.geographies ?? {};
-    const stateGeo = (geos.States ?? [])[0];
-    const countyGeo = (geos.Counties ?? [])[0];
-    const tractGeo = (geos['Census Tracts'] ?? [])[0];
 
-    const stateFips = stateGeo?.STATE ? String(stateGeo.STATE).padStart(2, '0') : '';
-    const countyFips = countyGeo?.COUNTY ? String(countyGeo.COUNTY).padStart(3, '0') : undefined;
+    // The geocoder returns STATE/COUNTY/TRACT as fields inside whichever layer has them.
+    // Priority: Census Tracts > 2020 Census Blocks > Incorporated Places > States.
+    // Each layer that has a STATE field also has COUNTY and TRACT when applicable.
+    const tractGeo = (geos['Census Tracts'] ?? [])[0] ?? (geos['2020 Census Blocks'] ?? [])[0];
+    const placeGeo = (geos['Incorporated Places'] ?? [])[0];
+    const stateGeo = (geos['States'] ?? [])[0];
+
+    // STATE field is available in Census Tracts, Blocks, and Incorporated Places.
+    const rawState = tractGeo?.STATE ?? placeGeo?.STATE ?? stateGeo?.STATE;
+    const stateFips = rawState ? String(rawState).padStart(2, '0') : '';
+    const countyFips = tractGeo?.COUNTY ? String(tractGeo.COUNTY).padStart(3, '0') : undefined;
     const tractFips = tractGeo?.TRACT ? String(tractGeo.TRACT) : undefined;
 
     if (!stateFips) {
@@ -295,7 +385,7 @@ export class GeographyService {
 
 let _service: GeographyService | undefined;
 
-export function initGeographyService(_config: AppConfig, _storage: StorageService): void {
+export function initGeographyService(): void {
   _service = new GeographyService();
 }
 

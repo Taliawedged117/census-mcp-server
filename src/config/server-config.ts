@@ -7,15 +7,38 @@
 import { z } from '@cyanheads/mcp-ts-core';
 import { parseEnvConfig } from '@cyanheads/mcp-ts-core/config';
 
-const ServerConfigSchema = z.object({
-  censusApiKey: z
-    .string()
-    .describe('Census Bureau API key from api.census.gov/data/key_signup.html'),
+/**
+ * Discovery config — no API key required. Used by tools that access public endpoints
+ * (TIGERweb, variables.json) or in-process caches without calling the Census Data API.
+ */
+const DiscoveryConfigSchema = z.object({
   defaultYear: z.coerce.number().default(2024).describe('Default vintage year for queries'),
   variableCacheTtlHours: z.coerce
     .number()
     .default(24)
     .describe('Hours to cache variables.json per dataset+year'),
+});
+
+export type DiscoveryConfig = z.infer<typeof DiscoveryConfigSchema>;
+
+let _discoveryConfig: DiscoveryConfig | undefined;
+
+export function getDiscoveryConfig(): DiscoveryConfig {
+  _discoveryConfig ??= parseEnvConfig(DiscoveryConfigSchema, {
+    defaultYear: 'CENSUS_DEFAULT_YEAR',
+    variableCacheTtlHours: 'CENSUS_VARIABLE_CACHE_TTL_HOURS',
+  });
+  return _discoveryConfig;
+}
+
+/**
+ * Full server config — requires CENSUS_API_KEY. Used only by tools that call the
+ * Census Data API (census_query_data, census_compare_geographies).
+ */
+const ServerConfigSchema = DiscoveryConfigSchema.extend({
+  censusApiKey: z
+    .string()
+    .describe('Census Bureau API key from api.census.gov/data/key_signup.html'),
 });
 
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;

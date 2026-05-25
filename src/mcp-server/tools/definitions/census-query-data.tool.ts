@@ -5,7 +5,7 @@
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { invalidParams, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { getServerConfig } from '@/config/server-config.js';
+import { getDiscoveryConfig } from '@/config/server-config.js';
 import { getCensusApiService } from '@/services/census-api/census-api-service.js';
 import {
   DATASET_LATEST_YEARS,
@@ -16,7 +16,7 @@ import {
 export const censusQueryData = tool('census_query_data', {
   title: 'Query Census Data',
   description:
-    'Query a Census dataset for one or more variables at a specific geography. Requires FIPS codes for the target geography — call census_resolve_geography first to convert place names to FIPS. Returns labeled estimates with margin-of-error values alongside each estimate. Suppression codes in the data (geography too small, data not collected) are surfaced with their meaning rather than passed through as raw negative numbers. Use geography_fips "*" to return all geographies at the level within the parent.',
+    'Query a Census dataset for one or more variables at a specific geography. Accepts FIPS codes for the target geography — use census_resolve_geography to convert place names to FIPS when needed. Labeled estimates and margin-of-error values are returned together. Suppression codes (geography too small, data not collected) are decoded into human-readable reasons rather than passed through as raw negative numbers. Pass geography_fips as "*" to return all geographies at the level within the parent.',
   annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
     variables: z
@@ -62,7 +62,7 @@ export const censusQueryData = tool('census_query_data', {
             geography_fips: z
               .string()
               .describe(
-                'FIPS code for this geography at the queried level. Use in follow-up census_query_data calls to query more variables for a specific result.',
+                'FIPS code for this geography at the queried level. Matches the geography_fips parameter in census_query_data for follow-up queries.',
               ),
             variables: z
               .object({})
@@ -156,7 +156,7 @@ export const censusQueryData = tool('census_query_data', {
     }
 
     const dataset = input.dataset?.trim() || 'acs/acs5';
-    const { defaultYear } = getServerConfig();
+    const { defaultYear } = getDiscoveryConfig();
     const year = input.year ?? DATASET_LATEST_YEARS[dataset] ?? defaultYear;
 
     ctx.log.info('Querying Census data', {
@@ -181,7 +181,6 @@ export const censusQueryData = tool('census_query_data', {
         variableLabels.set(v.code, v.label);
       }
     } catch {
-      // Best-effort label enrichment — proceed without labels if cache fails
       ctx.log.debug('Variable label enrichment skipped', { dataset, year });
     }
 
@@ -212,7 +211,6 @@ export const censusQueryData = tool('census_query_data', {
       );
     }
 
-    // Enrich variable labels from cache
     const enrichedRows = rows.map((row) => {
       const enrichedVariables: Record<
         string,

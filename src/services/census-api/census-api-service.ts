@@ -5,9 +5,7 @@
  */
 
 import type { Context } from '@cyanheads/mcp-ts-core';
-import type { AppConfig } from '@cyanheads/mcp-ts-core/config';
-import { serviceUnavailable, unauthorized } from '@cyanheads/mcp-ts-core/errors';
-import type { StorageService } from '@cyanheads/mcp-ts-core/storage';
+import { McpError, serviceUnavailable, unauthorized } from '@cyanheads/mcp-ts-core/errors';
 import { fetchWithTimeout, type RequestContext, withRetry } from '@cyanheads/mcp-ts-core/utils';
 import { getServerConfig } from '@/config/server-config.js';
 import type { CensusDataRow, CensusRawResponse, CensusVariableValue } from './types.js';
@@ -117,9 +115,23 @@ export class CensusApiService {
 
     return withRetry(
       async () => {
-        const response = await fetchWithTimeout(url, 10_000, ctx as unknown as RequestContext, {
-          signal: ctx.signal,
-        });
+        let response: Response;
+        try {
+          response = await fetchWithTimeout(url, 10_000, ctx as unknown as RequestContext, {
+            signal: ctx.signal,
+          });
+        } catch (err) {
+          // 404 means the year has no data for this dataset — return empty so the handler
+          // can throw year_not_available instead of a generic upstream error.
+          if (
+            err instanceof McpError &&
+            (err.data as { statusCode?: number })?.statusCode === 404
+          ) {
+            return [];
+          }
+          throw err;
+        }
+
         const text = await response.text();
 
         if (/^\s*<(!DOCTYPE\s+html|html[\s>])/i.test(text)) {
@@ -196,7 +208,6 @@ export class CensusApiService {
         };
       }
 
-      // Pair MOE with estimates based on E/M suffix conventions
       for (const varCode of requestedVariables) {
         if (varCode.endsWith('E')) {
           const moeCode = `${varCode.slice(0, -1)}M`;
@@ -220,7 +231,7 @@ export class CensusApiService {
 
 let _service: CensusApiService | undefined;
 
-export function initCensusApiService(_config: AppConfig, _storage: StorageService): void {
+export function initCensusApiService(): void {
   _service = new CensusApiService();
 }
 

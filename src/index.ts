@@ -13,20 +13,11 @@ import { initVariableCacheService } from './services/variable-cache/variable-cac
 
 await createApp({
   tools: allToolDefinitions,
-  resources: [],
-  prompts: [],
   instructions:
-    'US Census Bureau data server. Recommended workflow:\n' +
-    '1. census_list_datasets — discover available datasets and their years\n' +
-    '2. census_search_variables — find variable codes from human-readable concepts\n' +
-    '3. census_resolve_geography — convert place names to FIPS codes\n' +
-    '4. census_query_data — retrieve estimates for one geography\n' +
-    '5. census_compare_geographies — rank and compare across many geographies\n' +
-    'CENSUS_API_KEY is required for all data queries (census_query_data, census_compare_geographies). ' +
-    'Variable search and geography resolution work without a key.',
-  setup(core) {
-    initCensusApiService(core.config, core.storage);
-    initVariableCacheService(core.config, core.storage);
-    initGeographyService(core.config, core.storage);
+    'US Census Bureau data server. Recommended workflow:\n1. census_list_datasets — discover available datasets and their years\n2. census_search_variables — find variable codes from human-readable concepts\n3. census_resolve_geography — convert place names to FIPS codes\n4. census_query_data — retrieve estimates for one geography\n5. census_compare_geographies — rank and compare across many geographies\nCENSUS_API_KEY is required for all data queries (census_query_data, census_compare_geographies). Variable search and geography resolution work without a key.',
+  setup() {
+    initCensusApiService();
+    initVariableCacheService();
+    initGeographyService();
   },
 });

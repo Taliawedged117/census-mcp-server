@@ -36,9 +36,3 @@ export interface RawVariableEntry {
   predicateType?: string;
   universe?: string;
 }
-
-/** Cache key for a dataset+year combination. */
-export interface VariableCacheKey {
-  dataset: string;
-  year: number;
-}

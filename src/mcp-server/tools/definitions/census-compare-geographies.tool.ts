@@ -5,7 +5,7 @@
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { getServerConfig } from '@/config/server-config.js';
+import { getDiscoveryConfig } from '@/config/server-config.js';
 import { getCensusApiService } from '@/services/census-api/census-api-service.js';
 import {
   DATASET_LATEST_YEARS,
@@ -16,7 +16,7 @@ import {
 export const censusCompareGeographies = tool('census_compare_geographies', {
   title: 'Compare Census Geographies',
   description:
-    'Compare one or more variables across multiple geographies at the same level — all counties in a state, all states nationally, or a named set of specific geographies. Returns a sorted ranked table. Use for "rank states by poverty rate", "compare median income across WA counties", or "which census tracts in King County have the highest renter rate." Omit within to compare all geographies nationally at the level. Suppressed values are labeled rather than passed through as raw negative sentinels.',
+    'Compare one or more variables across multiple geographies at the same level — all counties in a state, all states nationally, or a named set of specific geographies. Results are sorted and ranked. Covers queries like "rank states by poverty rate", "compare median income across WA counties", or "which census tracts in King County have the highest renter rate." Omit within to compare all geographies nationally at the level. Suppressed values are decoded to human-readable labels rather than passed through as raw negative sentinels.',
   annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
     variables: z
@@ -77,7 +77,7 @@ export const censusCompareGeographies = tool('census_compare_geographies', {
             geography_fips: z
               .string()
               .describe(
-                'FIPS code for this geography. Use in census_query_data to query more variables for specific results.',
+                'FIPS code for this geography. Matches the geography_fips parameter in census_query_data for follow-up variable queries.',
               ),
             variables: z
               .object({})
@@ -106,6 +106,12 @@ export const censusCompareGeographies = tool('census_compare_geographies', {
   }),
 
   errors: [
+    {
+      reason: 'dataset_not_found',
+      code: JsonRpcErrorCode.NotFound,
+      when: 'Dataset code is not recognized.',
+      recovery: 'Call census_list_datasets to discover valid dataset codes like acs/acs5.',
+    },
     {
       reason: 'missing_api_key',
       code: JsonRpcErrorCode.Unauthorized,
@@ -152,20 +158,19 @@ export const censusCompareGeographies = tool('census_compare_geographies', {
   ],
 
   async handler(input, ctx) {
-    if (!KNOWN_DATASETS.has(input.dataset ?? 'acs/acs5')) {
-      throw ctx.fail(
-        'geography_not_supported',
-        `Unknown dataset: "${input.dataset}". Call census_list_datasets to discover valid dataset codes.`,
-        { dataset: input.dataset, ...ctx.recoveryFor('geography_not_supported') },
-      );
+    if (input.dataset && !KNOWN_DATASETS.has(input.dataset)) {
+      throw ctx.fail('dataset_not_found', `Unknown dataset: "${input.dataset}"`, {
+        dataset: input.dataset,
+        ...ctx.recoveryFor('dataset_not_found'),
+      });
     }
 
     const dataset = input.dataset?.trim() || 'acs/acs5';
-    const { defaultYear } = getServerConfig();
+    const { defaultYear } = getDiscoveryConfig();
     const year = input.year ?? DATASET_LATEST_YEARS[dataset] ?? defaultYear;
     const limit = Math.min(input.limit ?? 50, 500);
     const sortDir = input.sort_dir ?? 'desc';
-    const sortBy = (input.sort_by?.trim() || input.variables[0]) ?? input.variables[0] ?? '';
+    const sortBy = input.sort_by?.trim() || input.variables[0] || '';
 
     ctx.log.info('Comparing geographies', {
       variables: input.variables,
@@ -222,7 +227,6 @@ export const censusCompareGeographies = tool('census_compare_geographies', {
       );
     }
 
-    // Filter to specific geographies if requested
     let filteredRows = rows;
     if (input.geographies && input.geographies.length > 0) {
       const geoSet = new Set(input.geographies.map((g) => g.trim()));

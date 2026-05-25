@@ -5,11 +5,9 @@
  */
 
 import type { Context } from '@cyanheads/mcp-ts-core';
-import type { AppConfig } from '@cyanheads/mcp-ts-core/config';
 import { notFound, serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
-import type { StorageService } from '@cyanheads/mcp-ts-core/storage';
 import { fetchWithTimeout, type RequestContext, withRetry } from '@cyanheads/mcp-ts-core/utils';
-import { getServerConfig } from '@/config/server-config.js';
+import { getDiscoveryConfig } from '@/config/server-config.js';
 import type { CensusVariable, RawVariablesJson } from './types.js';
 
 const CENSUS_API_BASE = 'https://api.census.gov/data';
@@ -146,7 +144,7 @@ export class VariableCacheService {
   ): Promise<Map<string, CensusVariable>> {
     this.validateDataset(dataset);
 
-    const { variableCacheTtlHours } = getServerConfig();
+    const { variableCacheTtlHours } = getDiscoveryConfig();
     const ttlMs = variableCacheTtlHours * 60 * 60 * 1000;
     const cacheKey = `${dataset}|${year}`;
     const existing = this.cache.get(cacheKey);
@@ -199,9 +197,6 @@ export class VariableCacheService {
     for (const [code, entry] of Object.entries(rawVars)) {
       if (code === 'for' || code === 'in' || code === 'ucgid') continue;
 
-      const moeCode = code.endsWith('E') ? `${code.slice(0, -1)}M` : undefined;
-      const estimateCode = code.endsWith('M') ? `${code.slice(0, -1)}E` : undefined;
-
       const variable: CensusVariable = {
         code,
         label: entry.label ?? '',
@@ -210,10 +205,36 @@ export class VariableCacheService {
       };
 
       if (entry.universe) variable.universe = entry.universe;
-      if (estimateCode && rawVars[estimateCode]) variable.estimateCode = estimateCode;
-      if (moeCode && rawVars[moeCode]) variable.moeCode = moeCode;
+
+      // Infer E↔M sibling codes by suffix pattern. Census variables.json omits M-suffix
+      // (MOE) variables, but the pattern is reliable: B*E estimates always have a B*M
+      // counterpart accessible via the data API. Check rawVars first (some datasets do
+      // include M codes), then fall back to pattern-based inference for E-suffix codes.
+      if (code.endsWith('M')) {
+        const estimateCode = `${code.slice(0, -1)}E`;
+        if (rawVars[estimateCode]) variable.estimateCode = estimateCode;
+      } else if (code.endsWith('E')) {
+        const moeCode = `${code.slice(0, -1)}M`;
+        // Set moeCode regardless of whether the M code appears in variables.json —
+        // M-suffix variables work in census_query_data even though they aren't listed.
+        variable.moeCode = moeCode;
+      }
 
       variables.set(code, variable);
+    }
+
+    // Synthesize M-suffix entries for E-suffix variables so direct lookup of B*M codes works.
+    // These synthetic entries let census_get_variable resolve M codes without a variables_not_found error.
+    for (const [code, variable] of variables) {
+      if (variable.moeCode && !variables.has(variable.moeCode)) {
+        variables.set(variable.moeCode, {
+          code: variable.moeCode,
+          label: `Margin of Error — ${variable.label}`,
+          concept: variable.concept,
+          predicateType: 'int',
+          estimateCode: code,
+        });
+      }
     }
 
     this.cache.set(cacheKey, { variables, fetchedAt: Date.now() });
@@ -226,7 +247,7 @@ export class VariableCacheService {
 
 let _service: VariableCacheService | undefined;
 
-export function initVariableCacheService(_config: AppConfig, _storage: StorageService): void {
+export function initVariableCacheService(): void {
   _service = new VariableCacheService();
 }
 

@@ -21,15 +21,6 @@ export interface ResolvedGeography {
   tractFips?: string;
 }
 
-/** A candidate match when name resolution is ambiguous. */
-export interface GeographyCandidate {
-  countyFips?: string;
-  geographyType: string;
-  name: string;
-  stateFips: string;
-  stateName: string;
-}
-
 /** TIGERweb MapServer query response shape. */
 export interface TigerwebFeature {
   attributes: {
@@ -57,9 +48,16 @@ export interface GeocoderResult {
 
 export interface GeocoderMatch {
   geographies?: {
+    /** Present when benchmark includes the State layer. */
     States?: Array<{ STATE: string }>;
+    /** Present when benchmark includes the County layer. */
     Counties?: Array<{ STATE: string; COUNTY: string }>;
+    /** Census tracts include STATE, COUNTY, and TRACT. */
     'Census Tracts'?: Array<{ STATE: string; COUNTY: string; TRACT: string }>;
+    /** Block-level geography — also carries STATE, COUNTY, TRACT. */
+    '2020 Census Blocks'?: Array<{ STATE: string; COUNTY: string; TRACT: string }>;
+    /** Incorporated places carry STATE and PLACE (no COUNTY or TRACT). */
+    'Incorporated Places'?: Array<{ STATE: string; PLACE: string }>;
   };
   matchedAddress: string;
 }

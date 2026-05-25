@@ -14,7 +14,7 @@ vi.mock('@/services/variable-cache/variable-cache-service.js', () => ({
 }));
 
 vi.mock('@/config/server-config.js', () => ({
-  getServerConfig: vi.fn(() => ({ defaultYear: 2024 })),
+  getDiscoveryConfig: vi.fn(() => ({ defaultYear: 2024, variableCacheTtlHours: 24 })),
 }));
 
 const mockGetVariablesByCode = vi.fn();
@@ -116,6 +116,24 @@ describe('censusGetVariable', () => {
     expect(result.variables[0]).not.toHaveProperty('universe');
     expect(result.variables[0]).not.toHaveProperty('moe_code');
     expect(result.variables[0]).not.toHaveProperty('estimate_code');
+  });
+
+  it('returns moe_code inferred by pattern for E-suffix variables', async () => {
+    mockGetVariablesByCode.mockResolvedValue([
+      {
+        code: 'B19013_001E',
+        label: 'Estimate!!Median household income',
+        concept: 'MEDIAN HOUSEHOLD INCOME',
+        predicateType: 'int',
+        moeCode: 'B19013_001M',
+      },
+    ]);
+
+    const ctx = createMockContext();
+    const input = censusGetVariable.input.parse({ variables: ['B19013_001E'] });
+    const result = await censusGetVariable.handler(input, ctx);
+
+    expect(result.variables[0]?.moe_code).toBe('B19013_001M');
   });
 
   it('formats output with variable codes and labels', () => {

@@ -78,15 +78,13 @@ const DATASETS = [
 export const censusListDatasets = tool('census_list_datasets', {
   title: 'List Census Datasets',
   description:
-    "Browse available Census Bureau datasets with their supported vintage years. Returns dataset codes, human-readable names, and descriptions. Use this as the starting point when you don't know which dataset to query — ACS5, ACS1, population estimates, and decennial census all serve different use cases. Pass the dataset_id value to the dataset parameter in other census tools.",
+    'Browse available Census Bureau datasets with their supported vintage years. Use as the starting point when the right dataset is unknown — ACS5, ACS1, population estimates, and decennial census serve different use cases. Pass the dataset_id value to the dataset parameter in other census tools.',
   annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
     filter: z
       .string()
       .optional()
-      .describe(
-        'Optional keyword to filter datasets by name or description. Leave empty to list all datasets.',
-      ),
+      .describe('Keyword to filter datasets by name or description. Omit to list all datasets.'),
   }),
   output: z.object({
     datasets: z

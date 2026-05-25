@@ -10,7 +10,7 @@ import { getGeographyService } from '@/services/geography/geography-service.js';
 export const censusResolveGeography = tool('census_resolve_geography', {
   title: 'Resolve Census Geography',
   description:
-    'Resolve a place name to Census FIPS identifiers (state, county, tract codes). Converts "King County, WA" or "Seattle, WA" to the FIPS codes required by census_query_data and census_compare_geographies. Also accepts street addresses for tract-level resolution. Returns the FIPS values directly ready to pass to other tools — state_fips as parent_fips, fips_summary as geography_fips. Always call this first when working with place names rather than raw FIPS codes.',
+    'Resolve a place name or street address to Census FIPS identifiers (state, county, tract codes). Converts names like "King County, WA" or "Seattle, WA" to the FIPS codes required by census_query_data and census_compare_geographies. Use before querying when you have a place name rather than raw FIPS codes — state_fips maps to parent_fips and fips_summary maps to geography_fips in downstream tools.',
   annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
     name: z
@@ -60,7 +60,7 @@ export const censusResolveGeography = tool('census_resolve_geography', {
     {
       reason: 'no_match',
       code: JsonRpcErrorCode.NotFound,
-      when: 'Place name not found in TIGERweb or geocoder returned no matches.',
+      when: 'Place name not recognized or no matching geography found.',
       recovery:
         'Include the state abbreviation (e.g., "King County, WA"), use a full address, or verify the spelling.',
     },
@@ -74,14 +74,24 @@ export const censusResolveGeography = tool('census_resolve_geography', {
     {
       reason: 'resolution_unavailable',
       code: JsonRpcErrorCode.ServiceUnavailable,
-      when: 'TIGERweb or Census Geocoder endpoint was unreachable.',
+      when: 'Geography resolution endpoint was unreachable.',
       retryable: true,
       recovery:
-        'Retry the request — TIGERweb and the geocoder are free-tier endpoints with no auth requirements.',
+        'Retry the request — the Census geography endpoints are free-tier with no auth requirements.',
     },
   ],
 
   async handler(input, ctx) {
+    if (!input.name.trim()) {
+      throw ctx.fail(
+        'no_match',
+        'Place name is required — provide a city, county, state, or street address.',
+        {
+          recovery: { hint: 'Provide a non-empty name such as "King County, WA" or "Washington".' },
+        },
+      );
+    }
+
     ctx.log.info('Resolving geography', { name: input.name, geographyType: input.geography_type });
 
     const service = getGeographyService();

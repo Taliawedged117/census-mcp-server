@@ -5,7 +5,7 @@
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { getServerConfig } from '@/config/server-config.js';
+import { getDiscoveryConfig } from '@/config/server-config.js';
 import {
   DATASET_LATEST_YEARS,
   getVariableCacheService,
@@ -93,7 +93,7 @@ export const censusSearchVariables = tool('census_search_variables', {
     {
       reason: 'variables_unavailable',
       code: JsonRpcErrorCode.ServiceUnavailable,
-      when: 'Variables.json could not be fetched or parsed from the Census API.',
+      when: 'Variable metadata could not be fetched or parsed from the Census API.',
       retryable: true,
       recovery:
         'Retry the request; if persistent, the dataset and year combination may not be available.',
@@ -102,7 +102,7 @@ export const censusSearchVariables = tool('census_search_variables', {
 
   async handler(input, ctx) {
     const dataset = input.dataset?.trim() || 'acs/acs5';
-    const { defaultYear } = getServerConfig();
+    const { defaultYear } = getDiscoveryConfig();
     const year = input.year ?? DATASET_LATEST_YEARS[dataset] ?? defaultYear;
     const limit = Math.min(input.limit ?? 20, 100);
 
