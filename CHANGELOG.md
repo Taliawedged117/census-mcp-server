@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.1.4](changelog/0.1.x/0.1.4.md) — 2026-05-24
+
+Drop tsx, align all build scripts to bun-native execution; add funding metadata
+
 ## [0.1.3](changelog/0.1.x/0.1.3.md) — 2026-05-24
 
 Bug fixes and code simplification — geography resolution now fully functional (8 bugs fixed, 3 critical)
