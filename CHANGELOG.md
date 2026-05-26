@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.1.5](changelog/0.1.x/0.1.5.md) — 2026-05-26
+
+FUNDING.yml, Docker image, missing GitHub releases
+
 ## [0.1.4](changelog/0.1.x/0.1.4.md) — 2026-05-24
 
 Drop tsx, align all build scripts to bun-native execution; add funding metadata

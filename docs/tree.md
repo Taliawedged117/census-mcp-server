@@ -1,14 +1,15 @@
 # census-mcp-server - Directory Structure
 
-Generated on: 2026-05-25 01:44:13
+Generated on: 2026-05-26 07:42:45
 
 ```text
 census-mcp-server/
 ├── .github/
-│   └── ISSUE_TEMPLATE/
-│       ├── bug_report.yml
-│       ├── config.yml
-│       └── feature_request.yml
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.yml
+│   │   ├── config.yml
+│   │   └── feature_request.yml
+│   └── FUNDING.yml
 ├── .vscode/
 │   ├── extensions.json
 │   └── settings.json
