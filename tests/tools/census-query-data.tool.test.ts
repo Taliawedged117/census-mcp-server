@@ -125,14 +125,14 @@ describe('censusQueryData', () => {
     expect(callArgs).not.toHaveProperty('parentFips');
   });
 
-  it('throws InvalidParams when variables array is empty', async () => {
+  it('throws ValidationError when variables array is empty', async () => {
     const ctx = createMockContext({ errors: censusQueryData.errors });
     // Zod allows empty array — handler validates length
     const input = { variables: [], geography_level: 'state', geography_fips: '06' };
     await expect(
       censusQueryData.handler(input as Parameters<typeof censusQueryData.handler>[0], ctx),
     ).rejects.toMatchObject({
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
     });
   });
 
@@ -149,7 +149,7 @@ describe('censusQueryData', () => {
     });
   });
 
-  it('throws geography_not_supported for unknown dataset', async () => {
+  it('throws ValidationError for unknown dataset', async () => {
     const ctx = createMockContext({ errors: censusQueryData.errors });
     const input = censusQueryData.input.parse({
       variables: ['B19013_001E'],
@@ -158,7 +158,7 @@ describe('censusQueryData', () => {
       dataset: 'invalid/dataset',
     });
     await expect(censusQueryData.handler(input, ctx)).rejects.toMatchObject({
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
     });
   });
 

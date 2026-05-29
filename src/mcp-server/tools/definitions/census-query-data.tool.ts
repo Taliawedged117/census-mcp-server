@@ -4,7 +4,7 @@
  */
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
-import { invalidParams, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { JsonRpcErrorCode, validationError } from '@cyanheads/mcp-ts-core/errors';
 import { getDiscoveryConfig } from '@/config/server-config.js';
 import { getCensusApiService } from '@/services/census-api/census-api-service.js';
 import {
@@ -91,20 +91,20 @@ export const censusQueryData = tool('census_query_data', {
     },
     {
       reason: 'variable_not_found',
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
       when: 'One or more variable codes do not exist in the requested dataset and year.',
       recovery:
         'Call census_search_variables or census_get_variable to confirm codes for this dataset and year.',
     },
     {
       reason: 'geography_not_supported',
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
       when: 'The requested geography level is not available for this dataset and year.',
       recovery: 'Call census_list_geographies to see supported geography levels for this dataset.',
     },
     {
       reason: 'parent_required',
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
       when: 'The geography level requires a parent FIPS code but parent_fips was not provided.',
       recovery:
         'Add the parent_fips parameter — use census_resolve_geography to get the state_fips value.',
@@ -118,7 +118,7 @@ export const censusQueryData = tool('census_query_data', {
     },
     {
       reason: 'too_many_variables',
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
       when: 'More than 50 variable codes were requested.',
       recovery: 'Split the request into multiple calls with at most 50 variables each.',
     },
@@ -134,7 +134,7 @@ export const censusQueryData = tool('census_query_data', {
 
   async handler(input, ctx) {
     if (input.variables.length === 0) {
-      throw invalidParams(
+      throw validationError(
         'At least one variable code is required. Use census_search_variables to find codes.',
         { variableCount: 0 },
       );
@@ -149,7 +149,7 @@ export const censusQueryData = tool('census_query_data', {
     }
 
     if (!KNOWN_DATASETS.has(input.dataset ?? 'acs/acs5')) {
-      throw invalidParams(
+      throw validationError(
         `Unknown dataset: "${input.dataset}". Call census_list_datasets to discover valid dataset codes.`,
         { dataset: input.dataset },
       );

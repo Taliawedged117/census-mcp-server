@@ -66,7 +66,7 @@ export const censusListGeographies = tool('census_list_geographies', {
     },
     {
       reason: 'year_not_available',
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
       when: 'Dataset exists but the requested year has no data.',
       recovery: 'Check available_years in census_list_datasets for valid years for this dataset.',
     },

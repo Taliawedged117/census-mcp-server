@@ -1,0 +1,10 @@
+{
+  "@cyanheads/census-mcp-server": {
+    "command": "npx",
+    "args": ["-y", "@cyanheads/census-mcp-server"],
+    "env": {
+      "MCP_TRANSPORT_TYPE": "stdio",
+      "CENSUS_API_KEY": ""
+    }
+  }
+}

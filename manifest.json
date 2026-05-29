@@ -1,9 +1,17 @@
 {
   "manifest_version": "0.3",
   "name": "census-mcp-server",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Query U.S. Census Bureau data, variables, and geography via MCP. STDIO or Streamable HTTP.",
-  "author": { "name": "cyanheads" },
+  "author": {
+    "name": "cyanheads"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cyanheads/census-mcp-server"
+  },
+  "homepage": "https://github.com/cyanheads/census-mcp-server#readme",
+  "license": "Apache-2.0",
   "server": {
     "type": "node",
     "entry_point": "dist/index.js",
@@ -11,6 +19,7 @@
       "command": "node",
       "args": ["${__dirname}/dist/index.js"],
       "env": {
+        "CENSUS_API_KEY": "${user_config.CENSUS_API_KEY}",
         "MCP_TRANSPORT_TYPE": "stdio",
         "MCP_AUTH_MODE": "none",
         "NODE_ENV": "production"
@@ -18,7 +27,9 @@
     }
   },
   "compatibility": {
-    "runtimes": { "node": ">=24.0.0" }
+    "runtimes": {
+      "node": ">=24.0.0"
+    }
   },
   "tools_generated": true,
   "prompts_generated": true,
@@ -27,7 +38,8 @@
       "title": "Census API Key",
       "description": "Census Bureau API key from api.census.gov/data/key_signup.html. Required for data queries (census_query_data, census_compare_geographies); variable search and geography resolution work without it.",
       "type": "string",
-      "required": false
+      "required": false,
+      "default": ""
     }
   }
 }

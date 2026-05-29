@@ -1,0 +1,25 @@
+{
+  "name": "@cyanheads/census-mcp-server",
+  "version": "0.1.5",
+  "description": "Query U.S. Census Bureau data, variables, and geography via MCP. STDIO or Streamable HTTP.",
+  "author": {
+    "name": "cyanheads",
+    "email": "casey@caseyjhand.com",
+    "url": "https://github.com/cyanheads"
+  },
+  "homepage": "https://github.com/cyanheads/census-mcp-server#readme",
+  "repository": "https://github.com/cyanheads/census-mcp-server",
+  "license": "Apache-2.0",
+  "keywords": ["mcp", "mcp-server", "model-context-protocol", "census", "census-bureau", "acs", "geography", "open-data"],
+  "mcpServers": "./.codex-plugin/mcp.json",
+  "interface": {
+    "displayName": "@cyanheads/census-mcp-server",
+    "shortDescription": "Query U.S. Census Bureau data, variables, and geography via MCP.",
+    "longDescription": "",
+    "developerName": "cyanheads",
+    "category": "",
+    "capabilities": ["Read"],
+    "websiteURL": "https://github.com/cyanheads/census-mcp-server",
+    "defaultPrompt": []
+  }
+}

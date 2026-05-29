@@ -71,7 +71,7 @@ describe('censusListGeographies', () => {
     const ctx = createMockContext({ errors: censusListGeographies.errors });
     const input = censusListGeographies.input.parse({ dataset: 'acs/acs5', year: 1900 });
     await expect(censusListGeographies.handler(input, ctx)).rejects.toMatchObject({
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
       data: { reason: 'year_not_available' },
     });
   });

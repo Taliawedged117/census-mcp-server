@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.1.6](changelog/0.1.x/0.1.6.md) — 2026-05-28
+
+mcp-ts-core ^0.9.13: HTTP body cap (413), session-init gate, quieter client-error logging, GET /mcp keywords; manifest user_config wiring; error code alignment
+
 ## [0.1.5](changelog/0.1.x/0.1.5.md) — 2026-05-26
 
 FUNDING.yml, Docker image, missing GitHub releases

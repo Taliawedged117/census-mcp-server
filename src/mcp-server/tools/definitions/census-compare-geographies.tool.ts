@@ -121,21 +121,21 @@ export const censusCompareGeographies = tool('census_compare_geographies', {
     },
     {
       reason: 'geography_not_supported',
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
       when: 'The requested geography level is not available for this dataset and year.',
       recovery:
         'Call census_list_geographies to see supported geography levels for this dataset and year.',
     },
     {
       reason: 'parent_required',
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
       when: 'The geography level requires a parent FIPS but within was not provided.',
       recovery:
         'Add the within parameter with the parent FIPS — use census_resolve_geography to get the state_fips.',
     },
     {
       reason: 'variable_not_found',
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
       when: 'One or more variable codes are invalid for this dataset and year.',
       recovery:
         'Use census_search_variables or census_get_variable to confirm codes for this dataset and year.',

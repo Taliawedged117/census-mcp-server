@@ -66,7 +66,7 @@ export const censusResolveGeography = tool('census_resolve_geography', {
     },
     {
       reason: 'ambiguous_name',
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
       when: 'Name matched multiple geographies across different states.',
       recovery:
         'Re-call with a more specific name that includes the state abbreviation or full state name.',
