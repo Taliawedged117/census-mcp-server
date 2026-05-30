@@ -107,21 +107,40 @@ export const censusListDatasets = tool('census_list_datasets', {
           .describe('A single Census dataset entry.'),
       )
       .describe('Matching Census datasets.'),
-    total_count: z.number().describe('Total number of matching datasets.'),
   }),
+
+  enrichment: {
+    totalCount: z.number().describe('Total number of matching datasets.'),
+    filterApplied: z
+      .string()
+      .optional()
+      .describe('Filter keyword applied to the dataset list, when provided.'),
+    notice: z.string().optional().describe('Guidance when no datasets matched the filter keyword.'),
+  },
 
   handler(input, ctx) {
     ctx.log.info('Listing Census datasets', { filter: input.filter });
 
     let results = DATASETS;
+    const filterTrimmed = input.filter?.trim();
 
-    if (input.filter?.trim()) {
-      const filterLower = input.filter.toLowerCase();
+    if (filterTrimmed) {
+      const filterLower = filterTrimmed.toLowerCase();
       results = DATASETS.filter(
         (d) =>
           d.name.toLowerCase().includes(filterLower) ||
           d.description.toLowerCase().includes(filterLower) ||
           d.datasetId.toLowerCase().includes(filterLower),
+      );
+    }
+
+    ctx.enrich({
+      totalCount: results.length,
+      ...(filterTrimmed && { filterApplied: filterTrimmed }),
+    });
+    if (results.length === 0) {
+      ctx.enrich.notice(
+        `No datasets matched "${filterTrimmed}". Try a broader keyword like "acs" or omit the filter to list all.`,
       );
     }
 
@@ -132,12 +151,11 @@ export const censusListDatasets = tool('census_list_datasets', {
         description: d.description,
         available_years: d.availableYears,
       })),
-      total_count: results.length,
     };
   },
 
   format: (result) => {
-    const lines: string[] = [`**${result.total_count} datasets**\n`];
+    const lines: string[] = [`**${result.datasets.length} datasets**\n`];
     for (const d of result.datasets) {
       lines.push(`### ${d.name}`);
       lines.push(`**ID:** \`${d.dataset_id}\``);

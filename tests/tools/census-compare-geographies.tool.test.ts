@@ -4,7 +4,7 @@
  */
 
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { censusCompareGeographies } from '@/mcp-server/tools/definitions/census-compare-geographies.tool.js';
 
@@ -86,9 +86,10 @@ describe('censusCompareGeographies', () => {
     expect(result.rows[0]?.geography_name).toBe('King County, WA');
     expect(result.rows[0]?.rank).toBe(1);
     expect(result.rows[1]?.rank).toBe(2);
-    expect(result.sort_variable).toBe('B19013_001E');
-    expect(result.total_count).toBe(3);
-    expect(result.truncated).toBe(false);
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.sortVariable).toBe('B19013_001E');
+    expect(enrichment.totalCount).toBe(3);
+    expect(enrichment.truncated).toBe(false);
   });
 
   it('sorts ascending when sort_dir is asc', async () => {
@@ -175,8 +176,9 @@ describe('censusCompareGeographies', () => {
     const result = await censusCompareGeographies.handler(input, ctx);
 
     expect(result.rows).toHaveLength(10);
-    expect(result.truncated).toBe(true);
-    expect(result.total_count).toBe(60);
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.truncated).toBe(true);
+    expect(enrichment.totalCount).toBe(60);
   });
 
   it('throws dataset_not_found for unknown dataset', async () => {
@@ -251,11 +253,6 @@ describe('censusCompareGeographies', () => {
           rank: 1,
         },
       ],
-      total_count: 1,
-      truncated: false,
-      sort_variable: 'B19013_001E',
-      dataset: 'acs/acs5',
-      year: 2024,
     };
     const blocks = censusCompareGeographies.format!(output);
     expect(blocks[0]?.type).toBe('text');
@@ -264,30 +261,5 @@ describe('censusCompareGeographies', () => {
     expect(text).toContain('53033');
     expect(text).toContain('B19013_001E');
     expect(text).toContain('105,000');
-    expect(text).toContain('B19013_001E');
-  });
-
-  it('format shows truncation note when truncated', () => {
-    const output = {
-      rows: [
-        {
-          geography_name: 'King County, WA',
-          geography_fips: '53033',
-          variables: {
-            B19013_001E: { estimate: 105000, label: 'Median income', suppressed: false },
-          },
-          rank: 1,
-        },
-      ],
-      total_count: 100,
-      truncated: true,
-      sort_variable: 'B19013_001E',
-      dataset: 'acs/acs5',
-      year: 2024,
-    };
-    const blocks = censusCompareGeographies.format!(output);
-    const text = (blocks[0] as { type: string; text: string }).text;
-    expect(text).toContain('truncated');
-    expect(text).toContain('99');
   });
 });

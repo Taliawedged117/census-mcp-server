@@ -74,14 +74,22 @@ export const censusSearchVariables = tool('census_search_variables', {
       .describe(
         'Matching variables sorted by relevance. Variable codes ending in E are estimates; M are margins of error.',
       ),
-    total_matches: z
-      .number()
-      .describe(
-        'Total variables matching the query before the limit was applied. When greater than the returned count, narrow the query for more specific results.',
-      ),
+  }),
+
+  enrichment: {
+    effectiveQuery: z.string().describe('Query as the server parsed it.'),
     dataset: z.string().describe('Dataset that was searched.'),
     year: z.number().describe('Vintage year that was searched.'),
-  }),
+    totalMatches: z
+      .number()
+      .describe('Total variables matching the query before the limit was applied.'),
+    notice: z
+      .string()
+      .optional()
+      .describe(
+        'Guidance when no variables matched — suggests broader keywords or a different dataset.',
+      ),
+  },
 
   errors: [
     {
@@ -114,6 +122,14 @@ export const censusSearchVariables = tool('census_search_variables', {
       ctx,
     );
 
+    ctx.enrich.echo(input.query);
+    ctx.enrich({ dataset, year, totalMatches });
+    if (variables.length === 0) {
+      ctx.enrich.notice(
+        `No variables matched "${input.query}". Try broader keywords or a different dataset.`,
+      );
+    }
+
     return {
       variables: variables.map((v) => ({
         variable_code: v.code,
@@ -123,21 +139,11 @@ export const censusSearchVariables = tool('census_search_variables', {
         ...(v.estimateCode && { estimate_code: v.estimateCode }),
         ...(v.moeCode && { moe_code: v.moeCode }),
       })),
-      total_matches: totalMatches,
-      dataset,
-      year,
     };
   },
 
   format: (result) => {
-    const lines: string[] = [
-      `## Variable Search Results`,
-      `**Dataset:** ${result.dataset} (${result.year}) | **Matches:** ${result.total_matches} | **Showing:** ${result.variables.length}\n`,
-    ];
-
-    if (result.variables.length === 0) {
-      lines.push('> No variables matched this query. Try broader keywords or a different dataset.');
-    }
+    const lines: string[] = [`## Variable Search Results\n`];
 
     for (const v of result.variables) {
       lines.push(`### \`${v.variable_code}\``);
@@ -147,12 +153,6 @@ export const censusSearchVariables = tool('census_search_variables', {
       if (v.moe_code) lines.push(`**MOE code:** \`${v.moe_code}\``);
       if (v.estimate_code) lines.push(`**Estimate code:** \`${v.estimate_code}\``);
       lines.push('');
-    }
-
-    if (result.total_matches > result.variables.length) {
-      lines.push(
-        `> ${result.total_matches - result.variables.length} more results — narrow the query for more specific results.`,
-      );
     }
 
     return [{ type: 'text', text: lines.join('\n') }];

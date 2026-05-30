@@ -335,7 +335,7 @@ export class GeographyService {
     // Each layer that has a STATE field also has COUNTY and TRACT when applicable.
     const tractGeo = (geos['Census Tracts'] ?? [])[0] ?? (geos['2020 Census Blocks'] ?? [])[0];
     const placeGeo = (geos['Incorporated Places'] ?? [])[0];
-    const stateGeo = (geos['States'] ?? [])[0];
+    const stateGeo = (geos.States ?? [])[0];
 
     // STATE field is available in Census Tracts, Blocks, and Incorporated Places.
     const rawState = tractGeo?.STATE ?? placeGeo?.STATE ?? stateGeo?.STATE;

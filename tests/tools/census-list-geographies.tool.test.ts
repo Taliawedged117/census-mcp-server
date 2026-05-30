@@ -4,7 +4,7 @@
  */
 
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { censusListGeographies } from '@/mcp-server/tools/definitions/census-list-geographies.tool.js';
 
@@ -45,8 +45,9 @@ describe('censusListGeographies', () => {
     const result = await censusListGeographies.handler(input, ctx);
 
     expect(result.geography_levels).toHaveLength(4);
-    expect(result.dataset).toBe('acs/acs5');
-    expect(result.year).toBe(2024);
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.dataset).toBe('acs/acs5');
+    expect(enrichment.year).toBe(2024);
 
     const county = result.geography_levels.find((g) => g.geography_level === 'county');
     expect(county?.requires_parent).toBe(true);
@@ -112,8 +113,6 @@ describe('censusListGeographies', () => {
           example: '037 (Los Angeles County)',
         },
       ],
-      dataset: 'acs/acs5',
-      year: 2024,
     };
     const blocks = censusListGeographies.format!(output);
     expect(blocks[0]?.type).toBe('text');

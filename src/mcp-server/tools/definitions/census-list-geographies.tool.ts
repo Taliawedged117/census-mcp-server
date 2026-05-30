@@ -53,9 +53,15 @@ export const censusListGeographies = tool('census_list_geographies', {
           .describe('A single geography level available for this dataset.'),
       )
       .describe('Geography levels supported by this dataset and year.'),
+  }),
+
+  enrichment: {
     dataset: z.string().describe('Dataset queried.'),
     year: z.number().describe('Vintage year queried.'),
-  }),
+    totalLevels: z
+      .number()
+      .describe('Total number of geography levels available for this dataset and year.'),
+  },
 
   errors: [
     {
@@ -124,16 +130,14 @@ export const censusListGeographies = tool('census_list_geographies', {
       };
     });
 
-    return {
-      geography_levels: result,
-      dataset: input.dataset,
-      year,
-    };
+    ctx.enrich({ dataset: input.dataset, year, totalLevels: result.length });
+
+    return { geography_levels: result };
   },
 
   format: (result) => {
     const lines: string[] = [
-      `## Geography Levels for ${result.dataset} (${result.year})\n`,
+      `## Geography Levels\n`,
       `**${result.geography_levels.length} levels available**\n`,
     ];
     for (const level of result.geography_levels) {

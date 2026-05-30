@@ -4,7 +4,7 @@
  */
 
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { censusQueryData } from '@/mcp-server/tools/definitions/census-query-data.tool.js';
 
@@ -71,9 +71,10 @@ describe('censusQueryData', () => {
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0]?.geography_name).toBe('King County, Washington');
     expect(result.rows[0]?.geography_fips).toBe('033');
-    expect(result.total_rows).toBe(1);
-    expect(result.dataset).toBe('acs/acs5');
-    expect(result.year).toBe(2024);
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.totalRows).toBe(1);
+    expect(enrichment.dataset).toBe('acs/acs5');
+    expect(enrichment.year).toBe(2024);
   });
 
   it('passes parentFips to apiService when provided', async () => {
@@ -224,9 +225,6 @@ describe('censusQueryData', () => {
           },
         },
       ],
-      total_rows: 1,
-      dataset: 'acs/acs5',
-      year: 2024,
     };
     const blocks = censusQueryData.format!(output);
     expect(blocks[0]?.type).toBe('text');
@@ -253,9 +251,6 @@ describe('censusQueryData', () => {
           },
         },
       ],
-      total_rows: 1,
-      dataset: 'acs/acs5',
-      year: 2024,
     };
     const blocks = censusQueryData.format!(output);
     const text = (blocks[0] as { type: string; text: string }).text;

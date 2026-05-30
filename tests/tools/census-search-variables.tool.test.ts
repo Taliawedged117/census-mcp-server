@@ -3,7 +3,7 @@
  * @module tests/tools/census-search-variables.tool.test
  */
 
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { censusSearchVariables } from '@/mcp-server/tools/definitions/census-search-variables.tool.js';
 
@@ -51,9 +51,10 @@ describe('censusSearchVariables', () => {
     expect(result.variables).toHaveLength(1);
     expect(result.variables[0]?.variable_code).toBe('B19013_001E');
     expect(result.variables[0]?.moe_code).toBe('B19013_001M');
-    expect(result.total_matches).toBe(1);
-    expect(result.dataset).toBe('acs/acs5');
-    expect(result.year).toBe(2024);
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.totalMatches).toBe(1);
+    expect(enrichment.dataset).toBe('acs/acs5');
+    expect(enrichment.year).toBe(2024);
   });
 
   it('uses defaults when dataset and year are omitted', async () => {
@@ -61,10 +62,11 @@ describe('censusSearchVariables', () => {
 
     const ctx = createMockContext();
     const input = censusSearchVariables.input.parse({ query: 'poverty' });
-    const result = await censusSearchVariables.handler(input, ctx);
+    await censusSearchVariables.handler(input, ctx);
 
-    expect(result.dataset).toBe('acs/acs5');
-    expect(result.year).toBe(2024);
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.dataset).toBe('acs/acs5');
+    expect(enrichment.year).toBe(2024);
     expect(mockSearchVariables).toHaveBeenCalledWith(
       expect.objectContaining({ dataset: 'acs/acs5', year: 2024 }),
       expect.anything(),
@@ -92,7 +94,7 @@ describe('censusSearchVariables', () => {
     const result = await censusSearchVariables.handler(input, ctx);
 
     expect(result.variables).toHaveLength(0);
-    expect(result.total_matches).toBe(0);
+    expect(getEnrichment(ctx).totalMatches).toBe(0);
   });
 
   it('formats output with variable codes and concepts', () => {
@@ -106,9 +108,6 @@ describe('censusSearchVariables', () => {
           moe_code: 'B19013_001M',
         },
       ],
-      total_matches: 1,
-      dataset: 'acs/acs5',
-      year: 2024,
     };
     const blocks = censusSearchVariables.format!(output);
     expect(blocks[0]?.type).toBe('text');
@@ -116,24 +115,5 @@ describe('censusSearchVariables', () => {
     expect(text).toContain('B19013_001E');
     expect(text).toContain('MEDIAN HOUSEHOLD INCOME');
     expect(text).toContain('B19013_001M');
-  });
-
-  it('format shows truncation hint when total_matches exceeds shown count', () => {
-    const output = {
-      variables: [
-        {
-          variable_code: 'B17001_001E',
-          label: 'Total',
-          concept: 'POVERTY STATUS',
-          predicate_type: 'int',
-        },
-      ],
-      total_matches: 250,
-      dataset: 'acs/acs5',
-      year: 2024,
-    };
-    const blocks = censusSearchVariables.format!(output);
-    const text = (blocks[0] as { type: string; text: string }).text;
-    expect(text).toContain('249 more');
   });
 });

@@ -94,16 +94,23 @@ export const censusCompareGeographies = tool('census_compare_geographies', {
           .describe('One ranked geography row with variable values.'),
       )
       .describe('Geographies sorted by the requested variable. Suppressed values are labeled.'),
-    total_count: z
+  }),
+
+  enrichment: {
+    totalCount: z
       .number()
       .describe('Total number of geographies matched before the limit was applied.'),
     truncated: z
       .boolean()
-      .describe('True when total_count exceeds the limit and results were cut off.'),
-    sort_variable: z.string().describe('Variable code used for sorting.'),
+      .describe('True when totalCount exceeds the limit and results were cut off.'),
+    sortVariable: z.string().describe('Variable code used for sorting.'),
     dataset: z.string().describe('Dataset queried.'),
     year: z.number().describe('Vintage year queried.'),
-  }),
+    notice: z
+      .string()
+      .optional()
+      .describe('Guidance when results were truncated — how to narrow scope or increase limit.'),
+  },
 
   errors: [
     {
@@ -280,21 +287,18 @@ export const censusCompareGeographies = tool('census_compare_geographies', {
       };
     });
 
-    return {
-      rows: resultRows,
-      total_count: totalCount,
-      truncated,
-      sort_variable: sortBy,
-      dataset,
-      year,
-    };
+    ctx.enrich({ totalCount, truncated, sortVariable: sortBy, dataset, year });
+    if (truncated) {
+      ctx.enrich.notice(
+        `Results truncated — ${totalCount - sliced.length} more geographies not shown. Increase the limit parameter or use within to narrow the scope.`,
+      );
+    }
+
+    return { rows: resultRows };
   },
 
   format: (result) => {
-    const lines: string[] = [
-      `## Geography Comparison — ${result.dataset} (${result.year})`,
-      `**Sorted by:** \`${result.sort_variable}\` | **Total:** ${result.total_count}${result.truncated ? ` (showing ${result.rows.length})` : ''}\n`,
-    ];
+    const lines: string[] = [`## Geography Comparison\n`];
 
     for (const row of result.rows) {
       lines.push(`### ${row.rank}. ${row.geography_name}`);
@@ -317,12 +321,6 @@ export const censusCompareGeographies = tool('census_compare_geographies', {
         }
       }
       lines.push('');
-    }
-
-    if (result.truncated) {
-      lines.push(
-        `> Results truncated — ${result.total_count - result.rows.length} more geographies not shown. Increase the limit parameter or use within to narrow the scope.`,
-      );
     }
 
     return [{ type: 'text', text: lines.join('\n') }];

@@ -76,10 +76,13 @@ export const censusQueryData = tool('census_query_data', {
       .describe(
         'One row per geography. When geography_fips is "*", includes all geographies at the level within the parent.',
       ),
-    total_rows: z.number().describe('Number of geography rows returned.'),
+  }),
+
+  enrichment: {
+    totalRows: z.number().describe('Number of geography rows returned.'),
     dataset: z.string().describe('Dataset queried.'),
     year: z.number().describe('Vintage year queried.'),
-  }),
+  },
 
   errors: [
     {
@@ -240,19 +243,13 @@ export const censusQueryData = tool('census_query_data', {
       };
     });
 
-    return {
-      rows: enrichedRows,
-      total_rows: enrichedRows.length,
-      dataset,
-      year,
-    };
+    ctx.enrich({ totalRows: enrichedRows.length, dataset, year });
+
+    return { rows: enrichedRows };
   },
 
   format: (result) => {
-    const lines: string[] = [
-      `## Census Data — ${result.dataset} (${result.year})`,
-      `**${result.total_rows} geography rows**\n`,
-    ];
+    const lines: string[] = [`## Census Data`, `**${result.rows.length} geography rows**\n`];
 
     for (const row of result.rows) {
       lines.push(`### ${row.geography_name}`);
